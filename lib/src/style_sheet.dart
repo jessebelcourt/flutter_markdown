@@ -23,6 +23,7 @@ class MarkdownStyleSheet {
     this.img,
     this.blockSpacing,
     this.listIndent,
+    this.listItemSpaceBetween,
     this.blockquotePadding,
     this.blockquoteDecoration,
     this.codeblockPadding,
@@ -70,6 +71,7 @@ class MarkdownStyleSheet {
       img: theme.textTheme.body1,
       blockSpacing: 8.0,
       listIndent: 32.0,
+      listItemSpaceBetween: 8.0,
       blockquotePadding: 8.0,
       blockquoteDecoration: new BoxDecoration(
         color: Colors.blue.shade100,
@@ -113,6 +115,7 @@ class MarkdownStyleSheet {
       img: theme.textTheme.body1,
       blockSpacing: 8.0,
       listIndent: 32.0,
+      listItemSpaceBetween: 8.0,
       blockquotePadding: 8.0,
       blockquoteDecoration: new BoxDecoration(
         color: Colors.blue.shade100,
@@ -149,6 +152,7 @@ class MarkdownStyleSheet {
     TextStyle img,
     double blockSpacing,
     double listIndent,
+    double listItemSpaceBetween,
     double blockquotePadding,
     Decoration blockquoteDecoration,
     double codeblockPadding,
@@ -172,6 +176,7 @@ class MarkdownStyleSheet {
       img: img ?? this.img,
       blockSpacing: blockSpacing ?? this.blockSpacing,
       listIndent: listIndent ?? this.listIndent,
+      listItemSpaceBetween: listItemSpaceBetween ?? this.listItemSpaceBetween,
       blockquotePadding: blockquotePadding ?? this.blockquotePadding,
       blockquoteDecoration: blockquoteDecoration ?? this.blockquoteDecoration,
       codeblockPadding: codeblockPadding ?? this.codeblockPadding,
@@ -226,6 +231,9 @@ class MarkdownStyleSheet {
   /// The amount of horizontal space to indent list items.
   final double listIndent;
 
+  /// The amount of vertical space between list items.
+  final double listItemSpaceBetween;
+
   /// The padding to use for `blockquote` elements.
   final double blockquotePadding;
 
@@ -270,6 +278,7 @@ class MarkdownStyleSheet {
         && typedOther.img == img
         && typedOther.blockSpacing == blockSpacing
         && typedOther.listIndent == listIndent
+        && typedOther.listItemSpaceBetween == listItemSpaceBetween
         && typedOther.blockquotePadding == blockquotePadding
         && typedOther.blockquoteDecoration == blockquoteDecoration
         && typedOther.codeblockPadding == codeblockPadding
@@ -296,6 +305,7 @@ class MarkdownStyleSheet {
       img,
       blockSpacing,
       listIndent,
+      listItemSpaceBetween,
       blockquotePadding,
       blockquoteDecoration,
       codeblockPadding,

@@ -176,6 +176,7 @@ class MarkdownBuilder implements md.NodeVisitor {
 
       final _BlockElement current = _blocks.removeLast();
       Widget child;
+      double sizedBoxHeight;
 
       if (current.children.isNotEmpty) {
         child = new Column(
@@ -191,6 +192,8 @@ class MarkdownBuilder implements md.NodeVisitor {
         _listIndents.removeLast();
       } else if (tag == 'li') {
         if (_listIndents.isNotEmpty) {
+          sizedBoxHeight = styleSheet.listItemSpaceBetween;
+          
           child = new Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -225,7 +228,7 @@ class MarkdownBuilder implements md.NodeVisitor {
         );
       }
 
-      _addBlockChild(child);
+      _addBlockChild(child, sizedBoxHeight);
     } else {
       final _InlineElement current = _inlines.removeLast();
       final _InlineElement parent = _inlines.last;
@@ -312,10 +315,15 @@ class MarkdownBuilder implements md.NodeVisitor {
     }
   }
 
-  void _addBlockChild(Widget child) {
+  void _addBlockChild(Widget child, [sizedBoxHeight]) {
     final _BlockElement parent = _blocks.last;
-    if (parent.children.isNotEmpty)
+
+    // Allow certain block elements to have different space between i.e. 'li'
+    if (parent.children.isNotEmpty && sizedBoxHeight != null) {
+      parent.children.add(new SizedBox(height: sizedBoxHeight));
+    } else if (parent.children.isNotEmpty) {
       parent.children.add(new SizedBox(height: styleSheet.blockSpacing));
+    }
     parent.children.add(child);
     parent.nextListIndex += 1;
   }
@@ -340,9 +348,10 @@ class MarkdownBuilder implements md.NodeVisitor {
     for (Widget child in inline.children) {
       if (mergedTexts.isNotEmpty && mergedTexts.last is RichText && child is RichText) {
         RichText previous = mergedTexts.removeLast();
-        List<TextSpan> children = previous.text.children != null
-            ? new List.from(previous.text.children)
-            : [previous.text];
+        TextSpan previousTextSpan = previous.text;
+        List<TextSpan> children = previousTextSpan.children != null
+            ? new List.from(previousTextSpan.children)
+            : [previousTextSpan];
         children.add(child.text);
         TextSpan mergedSpan = new TextSpan(children: children);
         mergedTexts.add(new RichText(
