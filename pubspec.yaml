@@ -11,6 +11,7 @@ dependencies:
   meta: ^1.0.5
   string_scanner: ^1.0.0
   path: ^1.5.1
+  uuid: ^2.0.2
 
 dev_dependencies:
   flutter_test:

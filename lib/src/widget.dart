@@ -3,14 +3,17 @@
 // found in the LICENSE file.
 
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:meta/meta.dart';
 
 import 'builder.dart';
 import 'style_sheet.dart';
+import 'bus.dart';
 
 /// Signature for callbacks used by [MarkdownWidget] when the user taps a link.
 ///
@@ -20,7 +23,8 @@ typedef void MarkdownTapLinkCallback(String href);
 /// Creates a format [TextSpan] given a string.
 ///
 /// Used by [MarkdownWidget] to highlight the contents of `pre` elements.
-abstract class SyntaxHighlighter { // ignore: one_member_abstracts
+abstract class SyntaxHighlighter {
+  // ignore: one_member_abstracts
   /// Returns the formated [TextSpan] for the given string.
   TextSpan format(String source);
 }
@@ -46,8 +50,8 @@ abstract class MarkdownWidget extends StatefulWidget {
     this.syntaxHighlighter,
     this.onTapLink,
     this.imageDirectory,
-  }) : assert(data != null),
-       super(key: key);
+  })  : assert(data != null),
+        super(key: key);
 
   /// The Markdown to display.
   final String data;
@@ -77,7 +81,8 @@ abstract class MarkdownWidget extends StatefulWidget {
   _MarkdownWidgetState createState() => new _MarkdownWidgetState();
 }
 
-class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuilderDelegate {
+class _MarkdownWidgetState extends State<MarkdownWidget>
+    implements MarkdownBuilderDelegate {
   List<Widget> _children;
   final List<GestureRecognizer> _recognizers = <GestureRecognizer>[];
 
@@ -90,9 +95,8 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   @override
   void didUpdateWidget(MarkdownWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.data != oldWidget.data
-        || widget.styleSheet != oldWidget.styleSheet)
-      _parseMarkdown();
+    if (widget.data != oldWidget.data ||
+        widget.styleSheet != oldWidget.styleSheet) _parseMarkdown();
   }
 
   @override
@@ -102,7 +106,8 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   }
 
   void _parseMarkdown() {
-    final MarkdownStyleSheet styleSheet = widget.styleSheet ?? new MarkdownStyleSheet.fromTheme(Theme.of(context));
+    final MarkdownStyleSheet styleSheet = widget.styleSheet ??
+        new MarkdownStyleSheet.fromTheme(Theme.of(context));
 
     _disposeRecognizers();
 
@@ -118,21 +123,19 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   }
 
   void _disposeRecognizers() {
-    if (_recognizers.isEmpty)
-      return;
-    final List<GestureRecognizer> localRecognizers = new List<GestureRecognizer>.from(_recognizers);
+    if (_recognizers.isEmpty) return;
+    final List<GestureRecognizer> localRecognizers =
+        new List<GestureRecognizer>.from(_recognizers);
     _recognizers.clear();
-    for (GestureRecognizer recognizer in localRecognizers)
-      recognizer.dispose();
+    for (GestureRecognizer recognizer in localRecognizers) recognizer.dispose();
   }
 
   @override
   GestureRecognizer createLink(String href) {
     final TapGestureRecognizer recognizer = new TapGestureRecognizer()
       ..onTap = () {
-      if (widget.onTapLink != null)
-        widget.onTapLink(href);
-    };
+        if (widget.onTapLink != null) widget.onTapLink(href);
+      };
     _recognizers.add(recognizer);
     return recognizer;
   }
@@ -167,18 +170,17 @@ class MarkdownBody extends MarkdownWidget {
     MarkdownTapLinkCallback onTapLink,
     Directory imageDirectory,
   }) : super(
-    key: key,
-    data: data,
-    styleSheet: styleSheet,
-    syntaxHighlighter: syntaxHighlighter,
-    onTapLink: onTapLink,
-    imageDirectory: imageDirectory,
-  );
+          key: key,
+          data: data,
+          styleSheet: styleSheet,
+          syntaxHighlighter: syntaxHighlighter,
+          onTapLink: onTapLink,
+          imageDirectory: imageDirectory,
+        );
 
   @override
   Widget build(BuildContext context, List<Widget> children) {
-    if (children.length == 1)
-      return children.single;
+    if (children.length == 1) return children.single;
     return new Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
@@ -197,28 +199,111 @@ class MarkdownBody extends MarkdownWidget {
 ///  * <https://daringfireball.net/projects/markdown/>
 class Markdown extends MarkdownWidget {
   /// Creates a scrolling widget that parses and displays Markdown.
-  const Markdown({
+  ScrollController scrollController;
+  IDMap idMap = IDMap();
+  Bus bus = Bus();
+
+  Markdown({
     Key key,
     String data,
     MarkdownStyleSheet styleSheet,
     SyntaxHighlighter syntaxHighlighter,
     MarkdownTapLinkCallback onTapLink,
     Directory imageDirectory,
+    this.scrollController,
     this.padding: const EdgeInsets.all(16.0),
   }) : super(
-    key: key,
-    data: data,
-    styleSheet: styleSheet,
-    syntaxHighlighter: syntaxHighlighter,
-    onTapLink: onTapLink,
-    imageDirectory: imageDirectory,
-  );
+          key: key,
+          data: data,
+          styleSheet: styleSheet,
+          syntaxHighlighter: syntaxHighlighter,
+          onTapLink: onTapLink,
+          imageDirectory: imageDirectory,
+        );
 
   /// The amount of space by which to inset the children.
   final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context, List<Widget> children) {
-    return new ListView(padding: padding, children: children);
+    // return ListView(
+    //   padding: padding,
+    //   children: children,
+    //   controller: scrollController,
+    // );
+    return SingleChildScrollView(
+        controller: scrollController,
+        child: Column(
+          children: children,
+        ));
   }
+
+  @override
+  _MarkdownWidgetWithAnchorsState createState() =>
+      _MarkdownWidgetWithAnchorsState(idMap, scrollController);
+}
+
+class _MarkdownWidgetWithAnchorsState extends _MarkdownWidgetState
+    implements MarkdownBuilderDelegate {
+  IDMap idMap;
+  ScrollController scrollController;
+  Bus bus = Bus();
+
+  _MarkdownWidgetWithAnchorsState(this.idMap, this.scrollController);
+
+  @override
+  void initState() {
+    super.initState();
+    bus.screenPosition.stream.listen((double position) {
+      _goToElement(position - scrollController.offset - 50);
+    });
+  }
+
+  void _goToElement(double offset) {
+    if (offset >= scrollController.position.maxScrollExtent) {
+      offset = scrollController.position.maxScrollExtent;
+    } else if (offset <= scrollController.position.minScrollExtent) {
+      offset = scrollController.position.minScrollExtent;
+    }
+
+    Duration duration = Duration(milliseconds: 200);
+    scrollController.animateTo(offset,
+        duration: duration, curve: Curves.easeOut);
+  }
+
+  void _parseMarkdown() {
+    final MarkdownStyleSheet styleSheet = widget.styleSheet ??
+        new MarkdownStyleSheet.fromTheme(Theme.of(context));
+
+    _disposeRecognizers();
+
+    // TODO: This can be optimized by doing the split and removing \r at the same time
+    final List<String> lines = widget.data.replaceAll('\r\n', '\n').split('\n');
+    final md.Document document = new md.Document(encodeHtml: false);
+    final MarkdownBuilder builder = new MarkdownBuilder(
+      delegate: this,
+      styleSheet: styleSheet,
+      imageDirectory: widget.imageDirectory,
+    );
+    _children = builder.build(document.parseLines(lines));
+  }
+
+  @override
+  GestureRecognizer createLink(String href) {
+    final TapGestureRecognizer recognizer = new TapGestureRecognizer()
+      ..onTap = () {
+        RegExp re = RegExp(r'#(.*)$');
+        Match m = re.firstMatch(href);
+        String id = (m != null ? m.group(1) : '');
+        GlobalKey destinationKey = idMap.ids[id];
+        if (destinationKey != null) {
+          bus.test.add(destinationKey);
+        }
+      };
+    _recognizers.add(recognizer);
+    return recognizer;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.build(context, _children);
 }
