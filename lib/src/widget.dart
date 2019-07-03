@@ -202,17 +202,19 @@ class Markdown extends MarkdownWidget {
   ScrollController scrollController;
   IDMap idMap = IDMap();
   Bus bus = Bus();
+  double offsetScroll;
 
-  Markdown({
-    Key key,
-    String data,
-    MarkdownStyleSheet styleSheet,
-    SyntaxHighlighter syntaxHighlighter,
-    MarkdownTapLinkCallback onTapLink,
-    Directory imageDirectory,
-    this.scrollController,
-    this.padding: const EdgeInsets.all(16.0),
-  }) : super(
+  Markdown(
+      {Key key,
+      String data,
+      MarkdownStyleSheet styleSheet,
+      SyntaxHighlighter syntaxHighlighter,
+      MarkdownTapLinkCallback onTapLink,
+      Directory imageDirectory,
+      this.scrollController,
+      this.padding: const EdgeInsets.all(16.0),
+      this.offsetScroll})
+      : super(
           key: key,
           data: data,
           styleSheet: styleSheet,
@@ -231,16 +233,21 @@ class Markdown extends MarkdownWidget {
     //   children: children,
     //   controller: scrollController,
     // );
-    return SingleChildScrollView(
-        controller: scrollController,
-        child: Column(
-          children: children,
-        ));
+    // return SingleChildScrollView(
+    //     controller: scrollController,
+    //     child: Column(
+    //       children: children,
+    //     ));
+    return Column(children: children);
   }
 
   @override
   _MarkdownWidgetWithAnchorsState createState() =>
-      _MarkdownWidgetWithAnchorsState(idMap, scrollController);
+      _MarkdownWidgetWithAnchorsState(
+        idMap,
+        scrollController,
+        offsetScroll,
+      );
 }
 
 class _MarkdownWidgetWithAnchorsState extends _MarkdownWidgetState
@@ -248,24 +255,25 @@ class _MarkdownWidgetWithAnchorsState extends _MarkdownWidgetState
   IDMap idMap;
   ScrollController scrollController;
   Bus bus = Bus();
+  double offsetScroll;
+  double clickOffset;
 
-  _MarkdownWidgetWithAnchorsState(this.idMap, this.scrollController);
+  _MarkdownWidgetWithAnchorsState(
+    this.idMap,
+    this.scrollController,
+    this.offsetScroll,
+  );
 
   @override
   void initState() {
     super.initState();
     bus.screenPosition.stream.listen((double position) {
-      _goToElement(position - scrollController.offset - 50);
+      // -100 to account for AppBar height
+      _goToElement(position + scrollController.offset - 100);
     });
   }
 
   void _goToElement(double offset) {
-    if (offset >= scrollController.position.maxScrollExtent) {
-      offset = scrollController.position.maxScrollExtent;
-    } else if (offset <= scrollController.position.minScrollExtent) {
-      offset = scrollController.position.minScrollExtent;
-    }
-
     Duration duration = Duration(milliseconds: 200);
     scrollController.animateTo(offset,
         duration: duration, curve: Curves.easeOut);
@@ -290,14 +298,19 @@ class _MarkdownWidgetWithAnchorsState extends _MarkdownWidgetState
 
   @override
   GestureRecognizer createLink(String href) {
+    GlobalKey _key = GlobalKey();
     final TapGestureRecognizer recognizer = new TapGestureRecognizer()
       ..onTap = () {
+        clickOffset = null;
         RegExp re = RegExp(r'#(.*)$');
         Match m = re.firstMatch(href);
         String id = (m != null ? m.group(1) : '');
         GlobalKey destinationKey = idMap.ids[id];
+
         if (destinationKey != null) {
-          bus.test.add(destinationKey);
+          bus.find.add(destinationKey);
+        } else if (widget.onTapLink != null) {
+          widget.onTapLink(href);
         }
       };
     _recognizers.add(recognizer);

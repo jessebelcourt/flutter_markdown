@@ -12,6 +12,11 @@ import 'bus.dart';
 
 import 'style_sheet.dart';
 
+/// trims leading whitespace
+String ltrim(String str) {
+  return str.replaceFirst(new RegExp(r"^\s+"), "");
+}
+
 final Set<String> _kBlockTags = new Set<String>.from(<String>[
   'p',
   'h1',
@@ -156,11 +161,14 @@ class MarkdownBuilder implements md.NodeVisitor {
 
     _addParentInlineIfNeeded(_blocks.last.tag);
 
+    String strippedText =
+        (_inlines.last.children.isEmpty ? ltrim(text.text) : text.text);
+
     final TextSpan span = _blocks.last.tag == 'pre'
-        ? delegate.formatText(styleSheet, text.text)
+        ? delegate.formatText(styleSheet, strippedText)
         : new TextSpan(
             style: _inlines.last.style,
-            text: text.text,
+            text: strippedText,
             recognizer: _linkHandlers.isNotEmpty ? _linkHandlers.last : null,
           );
 
@@ -181,7 +189,6 @@ class MarkdownBuilder implements md.NodeVisitor {
     if (found) {
       _addAnonymousBlockIfNeeded(styleSheet.styles['p']);
       _blocks.add(_BlockElement('p', true));
-
     } else if (_isBlockTag(tag)) {
       _addAnonymousBlockIfNeeded(styleSheet.styles[tag]);
       if (_isListTag(tag)) _listIndents.add(tag);
@@ -245,7 +252,8 @@ class MarkdownBuilder implements md.NodeVisitor {
           sizedBoxHeight = styleSheet.listItemSpaceBetween;
 
           // Remove SizedBox if first Widget in 'li' is a 'FindMe'
-          if (current.children.first is FindMe && current.children.length >= 2) {
+          if (current.children.first is FindMe &&
+              current.children.length >= 2) {
             if (current.children[1] is SizedBox) {
               current.children.removeAt(1);
             }
@@ -454,15 +462,11 @@ class FindMeState extends State<FindMe> {
   @override
   void initState() {
     super.initState();
-    widget.bus.test.stream.listen((destinationKey) {
+    widget.bus.find.stream.listen((destinationKey) {
       if (destinationKey == widget.fkey) {
         RenderBox renderbox = destinationKey.currentContext.findRenderObject();
         var position = renderbox.localToGlobal(Offset.zero);
-
-        // TODO: need to replace kToolBarHeight with actual dynamically grabbed value
-        // for height of AppBar
-        widget.bus.screenPosition
-            .add(position.dy - renderbox.size.height - kToolbarHeight);
+        widget.bus.screenPosition.add(position.dy);
       }
     });
   }
